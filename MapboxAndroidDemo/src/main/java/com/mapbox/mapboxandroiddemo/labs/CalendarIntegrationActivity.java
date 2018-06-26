@@ -322,7 +322,7 @@ public class CalendarIntegrationActivity extends AppCompatActivity implements
       MapboxGeocoding client = MapboxGeocoding.builder()
         .accessToken(getString(R.string.access_token))
         .query(eventLocation)
-        .geocodingTypes(GeocodingCriteria.MODE_PLACES)
+        .geocodingTypes(GeocodingCriteria.TYPE_ADDRESS)
         .mode(GeocodingCriteria.MODE_PLACES)
         .build();
       client.enqueueCall(new Callback<GeocodingResponse>() {
@@ -349,9 +349,16 @@ public class CalendarIntegrationActivity extends AppCompatActivity implements
               LatLng featureLatLng = new LatLng(feature.center().latitude(), feature.center().longitude());
 
               if (featureLatLng != null) {
+                // TODO
                 singleCalendarEvent.setLocationCoordinates(featureLatLng);
-                listOfCalendarEvents.add(singleCalendarEvent);
-                addEventLocationMarker(featureLatLng, singleCalendarEvent.getEventTitle());
+                if (listOfCalendarEvents != null) {
+                  Log.d(TAG, "onResponse: listOfCalendarEvents != null");
+                  listOfCalendarEvents.add(singleCalendarEvent);
+                  addEventLocationMarker(featureLatLng, singleCalendarEvent.getEventTitle());
+                } else {
+                  Log.d(TAG, "onResponse: listOfCalendarEvents == null");
+                }
+
               }
             }
 
@@ -381,6 +388,7 @@ public class CalendarIntegrationActivity extends AppCompatActivity implements
   private void initRecyclerView() {
     // Set up the recyclerView
     if (listOfCalendarEvents.size() > 0) {
+      Log.d(TAG, "initRecyclerView: listOfCalendarEvents.size() > 0");
       locationAdapter = new CalendarEventRecyclerViewAdapter(listOfCalendarEvents, mapboxMap);
       recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext(),
         LinearLayoutManager.HORIZONTAL, true));

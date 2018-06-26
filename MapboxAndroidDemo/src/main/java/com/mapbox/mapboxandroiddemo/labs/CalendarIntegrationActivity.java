@@ -4,7 +4,9 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.CalendarContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -39,6 +41,8 @@ import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import retrofit2.Call;
@@ -62,6 +66,7 @@ public class CalendarIntegrationActivity extends AppCompatActivity implements
   private ArrayList<SingleCalendarEvent> listOfCalendarEvents;
   private static final int TITLE_INDEX = 1;
   private static final int EVENT_LOCATION_INDEX = 2;
+  private static final int DTSTART_INDEX = 3;
 
 
   @Override
@@ -281,38 +286,71 @@ public class CalendarIntegrationActivity extends AppCompatActivity implements
         Manifest.permission.READ_CALENDAR)) {
       } else {
         // No explanation needed, so request the calendar permission
-        ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.READ_CALENDAR}, MY_CAL_REQ);
+        ActivityCompat.requestPermissions(this, new String[]
+          {Manifest.permission.READ_CALENDAR}, MY_CAL_REQ);
       }
     } else {
-      String[] projection = new String[] {"calendar_id", "title", "eventLocation"};
-      Cursor cur = this.getContentResolver()
-        .query(
-          Uri.parse("content://com.android.calendar/events"), projection, null, null, null);
+      String[] projection = new String[] {CalendarContract.Events.CALENDAR_ID,
+        CalendarContract.Events.TITLE,
+        CalendarContract.Events.EVENT_LOCATION,
+        CalendarContract.Events.DTSTART};
 
-      listOfCalendarEvents = new ArrayList<>();
+      String uri;
+      Cursor cur = null;
+      Uri CALENDAR_URI;
 
-      int index = 0;
-      while (cur.moveToNext()) {
-        if (index <= 20) {
-          String location = null;
-          String title = null;
-
-          title = cur.getString(TITLE_INDEX);
-          location = cur.getString(EVENT_LOCATION_INDEX);
-
-          if (!location.isEmpty()) {
-            Log.d(TAG, "printDataFromEventTable: title = " + title);
-            Log.d(TAG, "printDataFromEventTable: location = " + location);
-
-            SingleCalendarEvent singleCalendarEvent = new SingleCalendarEvent();
-            singleCalendarEvent.setEventTitle(title);
-            makeMapboxGeocodingRequest(location, singleCalendarEvent);
-          }
-          index++;
-        }
+      if (Integer.parseInt(Build.VERSION.SDK) >= 8 || Integer.parseInt(Build.VERSION.SDK) <= 13) {
+        uri = "content://com.android.calendar/events";
+        CALENDAR_URI = Uri.parse(uri);
+      } else if (Integer.parseInt(Build.VERSION.SDK) >= 14) {
+        CALENDAR_URI = CalendarContract.Events.CONTENT_URI;
+      } else {
+        uri = "content://calendar/events";
+        CALENDAR_URI = Uri.parse(uri);
       }
 
-      initRecyclerView();
+      // 0 = January, 1 = February, ...
+
+      Calendar startTime = Calendar.getInstance();
+      startTime.set();
+
+      Calendar endTime= Calendar.getInstance();
+      endTime.set(2015,00,01,00,00);
+
+// the range is all data from 2014
+
+      String selection = "(( " + CalendarContract.Events.DTSTART + " >= " + startTime.getTimeInMillis() + " ) AND ( " + CalendarContract.Events.DTSTART + " <= " + endTime.getTimeInMillis() + " ))";
+
+
+      cur = this.getContentResolver().query(CALENDAR_URI, projection, null, null, null);
+
+      listOfCalendarEvents = new ArrayList<>();
+      int index = 0;
+      if (cur != null) {
+        while (cur.moveToNext()) {
+          if (index <= 20) {
+            String location = null;
+            String title = null;
+            String startTime = null;
+
+            title = cur.getString(TITLE_INDEX);
+            location = cur.getString(EVENT_LOCATION_INDEX);
+            startTime = cur.getString(DTSTART_INDEX);
+
+            if (!location.isEmpty()) {
+              Log.d(TAG, "printDataFromEventTable: title = " + title);
+              Log.d(TAG, "printDataFromEventTable: location = " + location);
+              Log.d(TAG, "printDataFromEventTable: startTime = " + startTime);
+
+              SingleCalendarEvent singleCalendarEvent = new SingleCalendarEvent();
+              singleCalendarEvent.setEventTitle(title);
+              makeMapboxGeocodingRequest(location, singleCalendarEvent);
+            }
+            index++;
+          }
+        }
+        initRecyclerView();
+      }
     }
   }
 
